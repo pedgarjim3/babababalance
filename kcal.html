@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0F1115">
+<title>Balance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================
+   BALANCE — registro de comidas
+   Paleta: noche profunda + ámbar cálido
+   --------------------------------------------
+   --ink       #0F1115  fondo
+   --slate     #171A21  superficie
+   --graphite  #1F232C  superficie elevada
+   --hairline  #262B35  bordes
+   --amber     #E9A23B  acento principal (energía)
+   --sage      #7BAE7F  proteína / positivo
+   --clay      #C4694E  exceso
+   --bone      #EDE9E2  texto
+   ============================================ */
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+:root{
+  --ink:#0F1115; --slate:#171A21; --graphite:#1F232C; --hairline:#262B35;
+  --amber:#E9A23B; --sage:#7BAE7F; --clay:#C4694E; --bone:#EDE9E2;
+  --mute:#6C7280; --dim:#454B57;
+  --display:'Bricolage Grotesque',sans-serif;
+  --body:'Instrument Sans',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --sat:env(safe-area-inset-top,0px);
+  --sab:env(safe-area-inset-bottom,0px);
+}
+
+html,body{height:100%;overscroll-behavior-y:none}
+body{
+  background:var(--ink);color:var(--bone);font-family:var(--body);
+  font-size:15px;line-height:1.5;
+  display:flex;flex-direction:column;
+  padding-top:var(--sat);
+}
+
+/* ---------- APP SHELL ---------- */
+#app{width:100%;max-width:480px;margin:0 auto;flex:1;display:flex;flex-direction:column;min-height:0}
+.view{flex:1;overflow-y:auto;padding:0 18px 190px;-webkit-overflow-scrolling:touch}
+.view::-webkit-scrollbar{width:0}
+
+/* ---------- TOP BAR ---------- */
+.topbar{
+  display:flex;align-items:baseline;justify-content:space-between;
+  padding:20px 18px 14px;max-width:480px;margin:0 auto;width:100%;
+}
+.wordmark{
+  font-family:var(--display);font-weight:800;font-size:15px;
+  letter-spacing:-.02em;color:var(--bone);
+}
+.wordmark span{color:var(--amber)}
+.datepill{
+  font-family:var(--mono);font-size:11px;color:var(--mute);
+  letter-spacing:.04em;text-transform:uppercase;
+}
+
+/* ---------- SIGNATURE: THE ARC ---------- */
+.arc-wrap{position:relative;display:flex;justify-content:center;padding:6px 0 4px}
+.arc{width:100%;max-width:300px;height:170px;overflow:visible}
+.arc-track{fill:none;stroke:var(--hairline);stroke-width:9;stroke-linecap:round}
+.arc-fill{fill:none;stroke:var(--amber);stroke-width:9;stroke-linecap:round;
+  transition:stroke-dashoffset .8s cubic-bezier(.34,1.2,.4,1),stroke .4s}
+.arc-center{
+  position:absolute;top:52%;left:0;right:0;transform:translateY(-50%);
+  text-align:center;pointer-events:none;
+}
+.arc-num{
+  font-family:var(--display);font-weight:800;font-size:56px;line-height:.9;
+  letter-spacing:-.045em;color:var(--amber);font-variant-numeric:tabular-nums;
+  transition:color .4s;
+}
+.arc-lbl{
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--mute);margin-top:7px;
+}
+.arc-sub{
+  display:flex;justify-content:center;gap:7px;margin-top:5px;
+  font-family:var(--mono);font-size:11px;color:var(--dim);
+}
+.arc-sub b{color:var(--mute);font-weight:500}
+
+/* ---------- MACROS ---------- */
+.macros{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.macro{background:var(--slate);border:1px solid var(--hairline);border-radius:13px;padding:11px 10px}
+.macro-top{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.macro-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.macro-name{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+.macro-val{font-family:var(--display);font-weight:600;font-size:20px;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+
+/* ---------- FASTING STRIP ---------- */
+.fast{
+  margin-top:12px;background:var(--slate);border:1px solid var(--hairline);
+  border-radius:13px;padding:13px 15px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.fast-l{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fast-state{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mute)}
+.fast-time{font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.fast-time.open{color:var(--sage)}
+.fast-time.shut{color:var(--amber)}
+.fast-bar{flex:1;max-width:110px;height:3px;background:var(--hairline);border-radius:99px;overflow:hidden}
+.fast-bar i{display:block;height:100%;background:var(--sage);border-radius:99px;transition:width .6s ease}
+.fast-bar.shut i{background:var(--amber)}
+
+/* ---------- SECTION LABEL ---------- */
+.slabel{
+  font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--dim);margin:26px 0 10px;display:flex;align-items:center;gap:10px;
+}
+.slabel::after{content:'';flex:1;height:1px;background:var(--hairline)}
+
+/* ---------- ENTRY ROWS ---------- */
+.entry{
+  background:var(--slate);border:1px solid var(--hairline);border-radius:13px;
+  padding:13px 15px;margin-bottom:7px;display:flex;align-items:center;gap:12px;
+  animation:rise .3s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.entry-body{flex:1;min-width:0}
+.entry-name{font-size:14.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry-macros{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:3px;letter-spacing:.02em}
+.entry-kcal{
+  font-family:var(--display);font-weight:600;font-size:16px;color:var(--amber);
+  font-variant-numeric:tabular-nums;flex-shrink:0;
+}
+.entry-x{
+  background:none;border:none;color:var(--dim);font-size:17px;line-height:1;
+  padding:3px 2px 3px 6px;cursor:pointer;flex-shrink:0;transition:color .15s;
+}
+.entry-x:active,.entry-x:hover{color:var(--clay)}
+
+.empty{
+  text-align:center;padding:32px 20px;color:var(--dim);font-size:13.5px;line-height:1.6;
+  border:1px dashed var(--hairline);border-radius:13px;
+}
+
+/* ---------- COMPOSER (fixed bottom) ---------- */
+.composer{
+  position:fixed;bottom:calc(58px + var(--sab));left:0;right:0;z-index:40;
+  background:linear-gradient(to top,var(--ink) 62%,transparent);
+  padding:22px 18px 12px;
+}
+.composer-in{max-width:480px;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
+.cbtn{
+  width:46px;height:46px;flex-shrink:0;border-radius:14px;border:1px solid var(--hairline);
+  background:var(--graphite);color:var(--bone);font-size:18px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:border-color .15s,background .15s;position:relative;overflow:hidden;
+}
+.cbtn:active{background:var(--hairline)}
+.cbtn.armed{border-color:var(--amber);background:rgba(233,162,59,.12)}
+.cbtn input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+#ci{
+  flex:1;min-width:0;background:var(--graphite);border:1px solid var(--hairline);
+  border-radius:14px;padding:13px 15px;color:var(--bone);font-family:var(--body);
+  font-size:15px;line-height:1.4;resize:none;outline:none;max-height:104px;
+  transition:border-color .15s;
+}
+#ci:focus{border-color:var(--amber)}
+#ci::placeholder{color:var(--dim)}
+.cbtn.send{background:var(--amber);color:var(--ink);border-color:var(--amber);font-weight:700}
+.cbtn.send:disabled{background:var(--graphite);color:var(--dim);border-color:var(--hairline);cursor:default}
+
+.thumb{max-width:480px;margin:0 auto 8px;position:relative;width:fit-content}
+.thumb img{height:62px;border-radius:11px;display:block;border:1px solid var(--hairline)}
+.thumb button{
+  position:absolute;top:-6px;right:-6px;width:21px;height:21px;border-radius:50%;
+  background:var(--clay);color:#fff;border:none;font-size:11px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+
+/* ---------- PROPOSAL CARD ---------- */
+.proposal{
+  background:var(--graphite);border:1px solid var(--amber);border-radius:15px;
+  padding:16px;margin-bottom:8px;animation:rise .3s cubic-bezier(.2,.8,.3,1);
+}
+.proposal-name{font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:-.02em;margin-bottom:9px}
+.proposal-kcal{font-family:var(--display);font-weight:800;font-size:34px;color:var(--amber);letter-spacing:-.04em;line-height:1}
+.proposal-kcal em{font-style:normal;font-size:14px;font-weight:500;color:var(--mute);margin-left:3px}
+.proposal-macros{font-family:var(--mono);font-size:11.5px;color:var(--mute);margin-top:8px;letter-spacing:.02em}
+.proposal-note{font-size:12.5px;color:var(--dim);margin-top:9px;line-height:1.5}
+.proposal-acts{display:flex;gap:8px;margin-top:14px}
+.pbtn{
+  flex:1;padding:11px;border-radius:11px;border:none;cursor:pointer;
+  font-family:var(--body);font-size:14px;font-weight:600;transition:opacity .15s;
+}
+.pbtn.add{background:var(--amber);color:var(--ink)}
+.pbtn.skip{flex:0 0 auto;padding:11px 16px;background:transparent;color:var(--mute);border:1px solid var(--hairline)}
+.pbtn:active{opacity:.75}
+
+/* ---------- BUSY / ERROR ---------- */
+.busy{display:flex;align-items:center;gap:9px;padding:15px;color:var(--mute);font-size:13.5px}
+.spin{width:15px;height:15px;border:2px solid var(--hairline);border-top-color:var(--amber);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{
+  background:rgba(196,105,78,.1);border:1px solid rgba(196,105,78,.35);
+  border-radius:12px;padding:12px 14px;font-size:13px;color:var(--clay);line-height:1.5;margin-bottom:8px;
+}
+
+/* ---------- TABBAR ---------- */
+.tabbar{
+  position:fixed;bottom:0;left:0;right:0;z-index:50;
+  background:rgba(15,17,21,.93);backdrop-filter:blur(16px);
+  border-top:1px solid var(--hairline);
+  padding-bottom:var(--sab);
+}
+.tabbar-in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.tab{
+  background:none;border:none;padding:11px 4px 12px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--dim);transition:color .18s;
+}
+.tab svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--amber)}
+
+/* ---------- FORM BITS ---------- */
+.field{margin-bottom:15px}
+.field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--mute);margin-bottom:6px}
+.field input,.field select{
+  width:100%;background:var(--graphite);border:1px solid var(--hairline);border-radius:11px;
+  padding:11px 13px;color:var(--bone);font-family:var(--body);font-size:15px;outline:none;
+}
+.field input:focus,.field select:focus{border-color:var(--amber)}
+.field .hint{font-size:11.5px;color:var(--dim);margin-top:5px;line-height:1.5}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.goalrow{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--slate);border:1px solid var(--hairline);border-radius:12px;
+  padding:11px 14px;margin-bottom:6px;
+}
+.goalrow span{font-size:14.5px}
+.goalrow input{
+  width:88px;background:var(--graphite);border:1px solid var(--hairline);border-radius:9px;
+  padding:8px 10px;color:var(--amber);font-family:var(--mono);font-size:14px;
+  text-align:right;outline:none;font-weight:500;
+}
+.goalrow input:focus{border-color:var(--amber)}
+
+.wbtn{
+  width:100%;padding:13px;border-radius:12px;border:1px solid var(--hairline);
+  background:var(--graphite);color:var(--bone);font-family:var(--body);font-size:14.5px;
+  font-weight:500;cursor:pointer;margin-bottom:8px;transition:background .15s;
+}
+.wbtn:active{background:var(--hairline)}
+.wbtn.hot{background:var(--amber);color:var(--ink);border-color:var(--amber);font-weight:600}
+.wbtn.danger{color:var(--clay);border-color:rgba(196,105,78,.3)}
+
+/* ---------- PANTRY ---------- */
+.pitem{
+  background:var(--slate);border:1px solid var(--hairline);border-radius:12px;
+  padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:11px;
+}
+.pitem-b{flex:1;min-width:0}
+.pitem-n{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pitem-m{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px}
+.pitem-k{font-family:var(--display);font-weight:600;font-size:15px;color:var(--amber);font-variant-numeric:tabular-nums}
+.pitem-quick{
+  background:none;border:1px solid var(--hairline);border-radius:8px;color:var(--sage);
+  width:29px;height:29px;font-size:16px;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.pitem-quick:active{background:var(--hairline)}
+
+/* ---------- HISTORY ---------- */
+.hday{
+  background:var(--slate);border:1px solid var(--hairline);border-radius:13px;
+  padding:14px 15px;margin-bottom:7px;
+}
+.hday-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}
+.hday-date{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute)}
+.hday-k{font-family:var(--display);font-weight:600;font-size:17px;font-variant-numeric:tabular-nums}
+.hday-bar{height:4px;background:var(--hairline);border-radius:99px;overflow:hidden;margin-bottom:8px}
+.hday-bar i{display:block;height:100%;border-radius:99px}
+.hday-macros{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.hday-items{margin-top:9px;padding-top:9px;border-top:1px solid var(--hairline);font-size:12.5px;color:var(--mute);line-height:1.7}
+
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:99;
+  background:var(--graphite);border:1px solid var(--amber);border-radius:11px;
+  padding:10px 17px;font-size:13.5px;color:var(--bone);
+  box-shadow:0 8px 28px rgba(0,0,0,.5);animation:rise .25s;
+  max-width:calc(100% - 36px);text-align:center;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wordmark">bal<span>ance</span></div>
+  <div class="datepill" id="datepill"></div>
+</div>
+
+<div id="app"></div>
+
+<div class="tabbar">
+  <div class="tabbar-in">
+    <button class="tab on" data-v="today">
+      <svg viewBox="0 0 24 24"><path d="M12 3v9l5 3"/><circle cx="12" cy="12" r="9"/></svg>Hoy</button>
+    <button class="tab" data-v="pantry">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Alimentos</button>
+    <button class="tab" data-v="history">
+      <svg viewBox="0 0 24 24"><path d="M3 20V10M9 20V4M15 20v-7M21 20v-11"/></svg>Historial</button>
+    <button class="tab" data-v="setup">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.6 1.6 0 008 19.4a1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H2a2 2 0 110-4h.1A1.6 1.6 0 003.6 8a1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H8a1.6 1.6 0 001-1.5V2a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V8a1.6 1.6 0 001.5 1H22a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/></svg>Ajustes</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   ESTADO
+   ========================================================= */
+const KEY='balance:v1';
+const BLANK={
+  // perfil
+  bio:{weight:91,height:184,age:27,sex:'m',baseMode:'bmr'},
+  calib:{},     // 'YYYY-MM-DD'(lunes) -> factor de corrección aprendido (multiplicador sobre el gasto total)
+  // objetivo semanal de déficit (kcal)
+  weekDeficit:3850,
+  proteinTarget:160,
+  fatTarget:75,
+  fast:{start:'22:30',end:'13:30'},
+  geminiKey:'',
+  days:{},      // 'YYYY-MM-DD' -> {meals:[], burn:0}
+  pantry:[],
+  weights:[]    // {d:'YYYY-MM-DD', kg:91}
+};
+function load(){
+  try{
+    const r=localStorage.getItem(KEY);
+    if(r){
+      const d=JSON.parse(r);
+      const m={...JSON.parse(JSON.stringify(BLANK)),...d};
+      // migra formato viejo: days[k] era un array de comidas
+      for(const k in m.days){
+        if(Array.isArray(m.days[k])) m.days[k]={meals:m.days[k],burn:{watch:0,sessions:[]}};
+        if(!m.days[k].meals) m.days[k].meals=[];
+        if(m.days[k].burn==null) m.days[k].burn={watch:0,sessions:[]};
+        else if(typeof m.days[k].burn==='number'){m.days[k].burn={watch:m.days[k].burn,sessions:[]}}
+      }
+      if(!m.bio) m.bio={...BLANK.bio};
+      if(!m.calib) m.calib={};
+      return m;
+    }
+  }catch(e){}
+  return JSON.parse(JSON.stringify(BLANK));
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+let S=load();
+let view='today';
+let pQuery='';
+let editIdx=null;
+let qtyIdx=null;
+let viewDate=null; // null = hoy, o 'YYYY-MM-DD' para editar un dia pasado
+let quickTotal=false;
+let photoImg=null, photoMime='image/jpeg', photoPreview=null;
+let photoBusy=false, photoProposal=null, photoErr=null;
+let photoRetry=null; // {attempt, max} mientras reintenta tras un fallo temporal
+
+
+/* =========================================================
+   FECHAS / OBJETIVOS
+   ========================================================= */
+const DAYS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const SHORT=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+function key(d=new Date()){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function dayOf(k){
+  if(!S.days[k]) S.days[k]={meals:[],burn:{watch:0,sessions:[]}};
+  return S.days[k];
+}
+function today(){return dayOf(viewDate||key())}
+function viewKey(){return viewDate||key()}
+
+function jumpToDate(){
+  const v=document.getElementById('jumpDate').value;
+  if(!v) return;
+  if(v>key()){toast('No puedes registrar un día futuro');return}
+  dayOf(v); // asegura que el día exista en S.days aunque esté vacío
+  save();
+  viewDate = (v===key()) ? null : v;
+  quickTotal=false;
+  view='today';
+  render();
+  window.scrollTo(0,0);
+}
+
+function deleteWeek(wk){
+  const [wy,wm,wd]=wk.split('-').map(Number);
+  const st=new Date(wy,wm-1,wd); // wk ya es el lunes (weekStart), en hora local
+  const ks=[];
+  for(let i=0;i<7;i++){
+    const x=new Date(st); x.setDate(st.getDate()+i);
+    ks.push(key(x));
+  }
+  const present=ks.filter(k=>S.days[k]);
+  if(!present.length) return;
+  const end=new Date(wy,wm-1,wd+6);
+  const label=`${wd}/${wm} – ${end.getDate()}/${end.getMonth()+1}`;
+  if(!confirm(`¿Borrar toda la semana ${label}? Esto elimina las comidas y el ejercicio registrados esos días. No afecta a tu biblioteca de Alimentos.`)) return;
+  present.forEach(k=>{ delete S.days[k] });
+  if(viewDate && present.includes(viewDate)) viewDate=null;
+  save();
+  toast('Semana borrada');
+  render();
+}
+
+function saveQuickTotal(){
+  const kcal=+document.getElementById('qtKcal').value;
+  if(!kcal){toast('Falta el total de kcal comidas');return}
+  const burn=Math.max(0,+document.getElementById('qtBurn').value||0);
+  const p=+document.getElementById('qtP').value||0;
+  const c=+document.getElementById('qtC').value||0;
+  const f=+document.getElementById('qtF').value||0;
+  const d=today();
+  d.meals=[{name:'Total del día',kcal:Math.round(kcal),p:Math.round(p),c:Math.round(c),f:Math.round(f)}];
+  d.burn={watch:burn,sessions:[]};
+  save(); quickTotal=false; toast('Día registrado'); render();
+}
+
+/* ==================== FOTO + IA (Gemini) ==================== */
+const PHOTO_BRIEF=`Eres el motor nutricional de una app de registro de comidas en español.
+Analiza la foto y/o la descripción y estima calorías y macros.
+
+Reglas:
+- Si el usuario da un peso o marca concreta, respétalos.
+- Si lees una etiqueta nutricional en la foto, usa esos valores exactos.
+- Cuando el dato sea incierto, estima SIEMPRE por lo alto (aceites, salsas y sofritos suman más de lo que parece).
+- El nombre debe ser corto y reconocible, con la cantidad entre paréntesis si se puede estimar.
+
+Devuelve SOLO este JSON, sin markdown ni texto alrededor ni backticks:
+{"name":"Nombre (cantidad)","kcal":0,"p":0,"c":0,"f":0,"note":"una frase breve sobre el supuesto principal"}`;
+
+function pickPhoto(file){
+  if(!file) return;
+  photoMime=file.type||'image/jpeg';
+  if(photoPreview) URL.revokeObjectURL(photoPreview);
+  photoPreview=URL.createObjectURL(file);
+  const fr=new FileReader();
+  fr.onload=()=>{photoImg=fr.result.split(',')[1]; render()};
+  fr.readAsDataURL(file);
+}
+function clearPhoto(){
+  photoImg=null;
+  if(photoPreview){URL.revokeObjectURL(photoPreview); photoPreview=null}
+}
+
+async function analyzePhoto(){
+  const ta=document.getElementById('photoText');
+  const text=(ta?.value||'').trim();
+  if((!text&&!photoImg)||photoBusy) return;
+  if(!S.geminiKey){toast('Añade tu clave de Gemini en Ajustes'); return}
+  photoBusy=true; photoProposal=null; photoErr=null; photoRetry=null; render();
+  try{
+    photoProposal=await callGemini(text);
+  }catch(e){
+    photoErr=e.message;
+  }
+  photoBusy=false; photoRetry=null; render();
+}
+
+async function callGemini(text){
+  const parts=[];
+  let pantryHint='';
+  if(S.pantry.length){
+    pantryHint='\n\nAlimentos ya guardados por el usuario (usa estos valores si coinciden):\n'+
+      S.pantry.slice(0,40).map(p=>`- ${p.name}: ${p.kcal} kcal/${p.unit}, P${p.p} C${p.c} G${p.f}`).join('\n');
+  }
+  parts.push({text:(text||'Analiza esta foto.')+pantryHint});
+  if(photoImg) parts.push({inline_data:{mime_type:photoMime,data:photoImg}});
+
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(S.geminiKey)}`;
+  const body={
+    contents:[{role:'user',parts}],
+    systemInstruction:{parts:[{text:PHOTO_BRIEF}]},
+    generationConfig:{
+      temperature:0.2,
+      responseMimeType:'application/json'
+    }
+  };
+
+  const MAX_RETRIES=5;
+  const RETRYABLE_STATUS=new Set([429,500,502,503,504]);
+  const isRetryableMsg=(msg)=>/overload|high demand|unavailable|try again|rate limit|internal error/i.test(msg||'');
+  const sleep=(ms)=>new Promise(res=>setTimeout(res,ms));
+
+  let lastErr=null;
+  for(let attempt=0;attempt<=MAX_RETRIES;attempt++){
+    if(attempt>0){
+      photoRetry={attempt,max:MAX_RETRIES};
+      render();
+      const wait=Math.min(1000*Math.pow(2,attempt-1),8000);
+      await sleep(wait);
+    }
+    let r;
+    try{
+      r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    }catch(networkErr){
+      lastErr=new Error('Sin conexión con Gemini. Revisa tu internet.');
+      if(attempt<MAX_RETRIES) continue;
+      photoRetry=null; throw lastErr;
+    }
+    if(!r.ok){
+      const e=await r.json().catch(()=>({}));
+      const msg=e.error?.message||`Gemini respondió ${r.status}`;
+      lastErr=new Error(msg);
+      const retryable=RETRYABLE_STATUS.has(r.status)||isRetryableMsg(msg);
+      if(retryable && attempt<MAX_RETRIES) continue;
+      photoRetry=null; throw lastErr;
+    }
+    const d=await r.json();
+    const cand=d.candidates?.[0];
+    const raw=(cand?.content?.parts||[]).map(p=>p.text||'').join('').trim();
+    if(!raw){
+      const reason=cand?.finishReason||'desconocido';
+      lastErr=new Error(`Gemini no devolvió texto (motivo: ${reason}). Prueba de nuevo o con otra foto.`);
+      const retryable=reason==='RECITATION'||reason==='OTHER';
+      if(retryable && attempt<MAX_RETRIES) continue;
+      photoRetry=null; throw lastErr;
+    }
+    const m=raw.match(/\{[\s\S]*\}/);
+    if(!m){
+      photoRetry=null;
+      throw new Error('Respuesta inesperada: '+raw.slice(0,120));
+    }
+    try{
+      photoRetry=null;
+      return JSON.parse(m[0]);
+    }catch(e){
+      photoRetry=null;
+      throw new Error('JSON inválido de Gemini: '+raw.slice(0,120));
+    }
+  }
+  photoRetry=null;
+  throw lastErr||new Error('No se pudo contactar con Gemini tras varios intentos.');
+}
+
+function acceptPhotoProposal(){
+  if(!photoProposal) return;
+  addEntry(photoProposal);
+  if(!S.pantry.some(p=>p.name.toLowerCase()===photoProposal.name.toLowerCase())){
+    S.pantry.unshift({name:photoProposal.name,unit:'total',
+      kcal:Math.round(photoProposal.kcal),p:Math.round(photoProposal.p||0),
+      c:Math.round(photoProposal.c||0),f:Math.round(photoProposal.f||0)});
+    S.pantry=S.pantry.slice(0,150);
+  }
+  save();
+  photoProposal=null; clearPhoto();
+  const ta=document.getElementById('photoText'); if(ta) ta.value='';
+  toast('Añadido al día'); render();
+}
+
+function sum(list){
+  return (list||[]).reduce((a,e)=>({k:a.k+(+e.kcal||0),p:a.p+(+e.p||0),c:a.c+(+e.c||0),f:a.f+(+e.f||0)}),{k:0,p:0,c:0,f:0});
+}
+
+/* --- SEMANA (lunes a domingo) --- */
+function weekStart(d=new Date()){
+  const x=new Date(d); const wd=(x.getDay()+6)%7; // 0=lunes
+  x.setDate(x.getDate()-wd); x.setHours(0,0,0,0); return x;
+}
+function weekKeys(d=new Date()){
+  const st=weekStart(d), out=[];
+  for(let i=0;i<7;i++){const x=new Date(st);x.setDate(st.getDate()+i);out.push(key(x))}
+  return out;
+}
+function dayIndex(d=new Date()){return (d.getDay()+6)%7}
+
+/* --- GASTO BASE: NO se suma nada aparte del reloj.
+   El reloj (Xiaomi u otro) YA calcula reposo + actividad — así lo dice
+   la propia app del reloj: "Calorías totales = calorías en reposo + activas".
+   Sumar el BMR por fórmula ENCIMA del reloj sería contar el reposo dos
+   veces otra vez. Por eso el gasto del día es: reloj + boxeo manual, punto.
+   El BMR se calcula solo para MOSTRARLO como referencia (por si un día
+   no llevas el reloj puesto) y como entrada del factor de calibración. --- */
+function bmr(){
+  const b=S.bio;
+  return Math.round(10*b.weight+6.25*b.height-5*b.age+(b.sex==='m'?5:-161));
+}
+/* Factor de corrección aprendido (1 = sin corregir). Se ajusta desde
+   la calibración semanal comparando el gasto que el reloj+boxeo dieron
+   con el gasto real inferido por el cambio de peso. Corrige el reloj,
+   que es la fuente típica de error (suele infraestimar boxeo/pesas). */
+function calibFactor(){
+  const keys=Object.keys(S.calib||{});
+  if(!keys.length) return 1;
+  return S.calib[keys.sort().pop()].factor||1;
+}
+/* Gasto "base" que se suma en cada día = 0. Todo el reposo+actividad
+   viene de totalBurn() (reloj + sesión). Esto existe como función para
+   que si algún día decides ir SIN reloj, aquí es donde vuelve a entrar
+   el BMR × factor de actividad manual. */
+function baseBurn(){ return 0; }
+
+/* Balance semanal: gasto = base + quemadas registradas */
+function weekStats(){
+  const ks=weekKeys(), idx=dayIndex();
+  const base=baseBurn();
+  let eaten=0,burned=0,prot=0,daysElapsed=0;
+  ks.forEach((k,i)=>{
+    const d=S.days[k];
+    if(i<=idx){
+      daysElapsed++;
+      burned+=base+totalBurn(d);
+      if(d){const t=sum(d.meals); eaten+=t.k; prot+=t.p}
+    }
+  });
+  const deficit=burned-eaten;                  // positivo = vas bien
+  const target=S.weekDeficit||3850;
+  const daysLeft=7-daysElapsed;
+  // presupuesto restante = gasto previsto restante − déficit que falta
+  const projBurn=daysLeft*(base+avgBurn());
+  const need=target-deficit;                   // déficit que aún falta
+  const left=Math.round(projBurn-need);        // kcal que puedes comer en lo que queda
+  return {eaten,burned,deficit,target,daysElapsed,daysLeft,left,prot,base};
+}
+function avgBurn(){
+  // media de quemadas activas de los últimos 14 días con dato
+  const vals=[];
+  const now=new Date();
+  for(let i=0;i<14;i++){
+    const x=new Date(now); x.setDate(now.getDate()-i);
+    const d=S.days[key(x)];
+    if(d){const tb=totalBurn(d);if(tb>0) vals.push(tb)}
+  }
+  if(!vals.length) return 760;
+  return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+}
+
+/* Presupuesto sugerido para HOY */
+function todayBudget(){
+  const base=baseBurn();
+  const d=today();
+  const burn=base+totalBurn(d);
+  const daily=Math.round((S.weekDeficit||3850)/7);
+  return Math.max(1200, burn-daily);
+}
+
+function totalBurn(d){
+  if(!d||!d.burn) return 0;
+  let raw;
+  if(typeof d.burn==='number') raw=d.burn;
+  else raw=(d.burn.watch||0)+(d.burn.sessions||[]).reduce((a,s)=>a+s.kcal,0);
+  return Math.round(raw*calibFactor());
+}
+
+/* Macros objetivo dinámicos */
+function macroTargets(){
+  const p=S.proteinTarget||160;
+  const f=S.fatTarget||75;
+  const budget=todayBudget();
+  const remaining=budget - p*4 - f*9;
+  const c=Math.max(0,Math.round(remaining/4));
+  return {p,c,f};
+}
+
+/* Ventana de comida — devuelve estado y minutos restantes */
+function fastState(){
+  const now=new Date(), mins=now.getHours()*60+now.getMinutes();
+  const [sh,sm]=S.fast.start.split(':').map(Number);
+  const [eh,em]=S.fast.end.split(':').map(Number);
+  const st=sh*60+sm, en=eh*60+em;
+  // ventana de comida: desde `end` hasta `start` (cruza medianoche al revés)
+  const open = st>en ? (mins>=en && mins<st) : (mins>=en || mins<st);
+  let left, total;
+  if(open){
+    left = st>en ? st-mins : (mins>=en ? (24*60-mins)+st : st-mins);
+    total = st>en ? st-en : (24*60-en)+st;
+  }else{
+    left = mins<en ? en-mins : (24*60-mins)+en;
+    total = st>en ? (24*60-st)+en : en-st;
+  }
+  return {open,left,total};
+}
+function hhmm(m){
+  const h=Math.floor(m/60), mm=m%60;
+  return h>0 ? `${h}h ${String(mm).padStart(2,'0')}m` : `${mm}m`;
+}
+
+/* =========================================================
+   IA
+   ========================================================= */
+/* =========================================================
+   ACCIONES
+   ========================================================= */
+function addEntry(e){
+  const d=today();
+  d.meals.push({name:e.name,kcal:Math.round(+e.kcal||0),p:Math.round(+e.p||0),c:Math.round(+e.c||0),f:Math.round(+e.f||0)});
+  save();
+}
+function saveEdit(i){
+  const d=today();
+  const kc=+document.getElementById('eK').value;
+  if(!kc){toast('Falta el número de kcal');return}
+  d.meals[i]={
+    name:document.getElementById('eName').value.trim()||'Comida',
+    kcal:kc,
+    p:+document.getElementById('eP').value||0,
+    c:+document.getElementById('eC').value||0,
+    f:+document.getElementById('eF').value||0
+  };
+  save(); editIdx=null; toast('Actualizado'); render();
+}
+function removeEntry(i){
+  editIdx=null;
+  const d=today();
+  d.meals.splice(i,1);
+  save(); render();
+}
+
+let toastT=null;
+function toast(msg){
+  document.querySelector('.toast')?.remove();
+  const el=document.createElement('div');
+  el.className='toast'; el.textContent=msg;
+  document.body.appendChild(el);
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>el.remove(),2000);
+}
+
+/* Export / Import */
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`balance-${key()}.json`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  toast('Copia descargada');
+}
+function importJSON(file){
+  const fr=new FileReader();
+  fr.onload=()=>{
+    try{
+      const d=JSON.parse(fr.result);
+      S={...BLANK,...d}; save(); render(); toast('Datos restaurados');
+    }catch(e){ toast('El archivo no es válido') }
+  };
+  fr.readAsText(file);
+}
+
+/* =========================================================
+   VISTAS
+   ========================================================= */
+function vToday(){
+  const d=today(), list=d.meals, t=sum(list);
+  const g=todayBudget();
+  const left=g-t.k, pct=Math.min(t.k/g,1);
+  const over=t.k>g, near=t.k>=g*.88;
+  const col=over?'var(--clay)':near?'#D98A3B':'var(--amber)';
+  const R=120, LEN=Math.PI*R, off=LEN*(1-pct);
+
+  const w=weekStats();
+  const wPct=Math.max(0,Math.min(w.deficit/w.target,1));
+  const onTrack=w.deficit>=(w.target/7)*w.daysElapsed*0.85;
+
+  const f=fastState();
+  const fpct=Math.min(1-(f.left/f.total),1);
+  const mt=macroTargets();
+  const isToday=!viewDate || viewDate===key();
+  const showWeighIn=isToday && weightDueToday();
+  const vd=viewKey();
+  const [vy,vm,vdd]=vd.split('-').map(Number);
+  const vLabel=`${SHORT[new Date(vy,vm-1,vdd).getDay()]} ${vdd}/${vm}`;
+
+  return `
+  <div class="view">
+    ${!isToday?`
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--graphite);border:1px solid var(--amber);border-radius:12px;padding:11px 14px;margin-bottom:14px">
+      <span style="font-size:13px;color:var(--bone)">Editando <b style="color:var(--amber)">${vLabel}</b></span>
+      <button onclick="viewDate=null;quickTotal=false;render()" style="background:none;border:1px solid var(--hairline);border-radius:8px;padding:6px 12px;color:var(--mute);font-family:var(--mono);font-size:11px;cursor:pointer">Volver a hoy</button>
+    </div>`:''}
+
+    ${showWeighIn?`
+    <div style="display:flex;align-items:center;gap:10px;background:var(--graphite);border:1px solid var(--amber);border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <span style="font-size:18px;flex-shrink:0">⚖️</span>
+      <span style="flex:1;font-size:13px;color:var(--bone)">Toca pesarse hoy. Recién levantado, sin ropa, después del baño.</span>
+      <button onclick="view='setup';render();window.scrollTo(0,0)" style="background:var(--amber);color:var(--ink);border:none;border-radius:9px;padding:8px 14px;font-family:var(--body);font-weight:600;font-size:12.5px;cursor:pointer;white-space:nowrap;flex-shrink:0">Pesarme</button>
+    </div>`:''}
+
+    ${!quickTotal?`
+    <button onclick="quickTotal=true;render()" style="width:100%;background:none;border:1px dashed var(--hairline);border-radius:11px;padding:10px;color:var(--amber);font-family:var(--mono);font-size:11.5px;cursor:pointer;margin-bottom:14px">
+      ⚡ Registro rápido (Yazio u otra app): solo el total
+    </button>`:`
+    <div style="background:var(--graphite);border:1px solid var(--amber);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-family:var(--mono);font-size:9.5px;color:var(--mute);margin-bottom:4px;letter-spacing:.06em">COMIDO TOTAL</div>
+          <input id="qtKcal" type="number" inputmode="numeric" placeholder="kcal"
+            style="width:100%;min-width:0;background:var(--ink);border:1px solid var(--amber);border-radius:9px;padding:9px;color:var(--amber);font-family:var(--mono);font-size:14px;text-align:center;outline:none;box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:9.5px;color:var(--mute);margin-bottom:4px;letter-spacing:.06em">GASTO ACTIVO</div>
+          <input id="qtBurn" type="number" inputmode="numeric" placeholder="kcal" value="${totalBurn(d)||''}"
+            style="width:100%;min-width:0;background:var(--ink);border:1px solid var(--hairline);border-radius:9px;padding:9px;color:var(--sage);font-family:var(--mono);font-size:14px;text-align:center;outline:none;box-sizing:border-box">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px">
+        <input id="qtP" type="number" inputmode="numeric" placeholder="P (g)"
+          style="width:100%;min-width:0;background:var(--ink);border:1px solid var(--hairline);border-radius:9px;padding:8px 2px;color:var(--sage);font-family:var(--mono);font-size:12px;text-align:center;outline:none;box-sizing:border-box">
+        <input id="qtC" type="number" inputmode="numeric" placeholder="C (g)"
+          style="width:100%;min-width:0;background:var(--ink);border:1px solid var(--hairline);border-radius:9px;padding:8px 2px;color:var(--amber);font-family:var(--mono);font-size:12px;text-align:center;outline:none;box-sizing:border-box">
+        <input id="qtF" type="number" inputmode="numeric" placeholder="G (g)"
+          style="width:100%;min-width:0;background:var(--ink);border:1px solid var(--hairline);border-radius:9px;padding:8px 2px;color:var(--clay);font-family:var(--mono);font-size:12px;text-align:center;outline:none;box-sizing:border-box">
+      </div>
+      <div style="display:flex;gap:7px;margin-top:9px">
+        <button class="pbtn add" style="flex:1;padding:9px" onclick="saveQuickTotal()">Guardar total</button>
+        <button class="pbtn skip" style="padding:9px 14px" onclick="quickTotal=false;render()">Cancelar</button>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-top:8px;line-height:1.5">Sustituye las comidas de ${isToday?'hoy':'ese día'} por un único total. Los macros son opcionales.</div>
+    </div>`}
+    <div class="arc-wrap">
+      <svg class="arc" viewBox="0 0 300 165">
+        <path class="arc-track" d="M 30 150 A ${R} ${R} 0 0 1 270 150"/>
+        <path class="arc-fill" d="M 30 150 A ${R} ${R} 0 0 1 270 150"
+              style="stroke:${col};stroke-dasharray:${LEN};stroke-dashoffset:${off}"/>
+      </svg>
+      <div class="arc-center">
+        <div class="arc-num" style="color:${col}">${over?'+'+Math.abs(left):left}</div>
+        <div class="arc-lbl">${over?'de más hoy':'te quedan hoy'}</div>
+        <div class="arc-sub"><b>${t.k}</b> de <b>${g}</b> kcal</div>
+      </div>
+    </div>
+
+    <!-- GASTO DE HOY -->
+    <div class="fast" style="margin-top:4px">
+      <div class="fast-l">
+        <div class="fast-state">Gasto de hoy</div>
+        <div class="fast-time" style="color:var(--bone)">${totalBurn(d)} kcal</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+        <button onclick="askWatch()" style="background:var(--graphite);border:1px solid ${(d.burn&&d.burn.watch)?'var(--sage)':'var(--hairline)'};border-radius:9px;padding:7px 12px;color:${(d.burn&&d.burn.watch)?'var(--sage)':'var(--mute)'};font-family:var(--mono);font-size:11px;cursor:pointer;white-space:nowrap">
+          ⌚ ${(d.burn&&d.burn.watch)?d.burn.watch+' kcal':'Reloj'}
+        </button>
+        <button onclick="askSession()" style="background:var(--graphite);border:1px solid ${(d.burn&&d.burn.sessions&&d.burn.sessions.length)?'var(--amber)':'var(--hairline)'};border-radius:9px;padding:7px 12px;color:${(d.burn&&d.burn.sessions&&d.burn.sessions.length)?'var(--amber)':'var(--mute)'};font-family:var(--mono);font-size:11px;cursor:pointer;white-space:nowrap">
+          🥊 ${(d.burn&&d.burn.sessions&&d.burn.sessions.length)?(d.burn.sessions.map(x=>x.kcal).reduce((a,b)=>a+b,0))+' kcal':'Sesión'}
+        </button>
+      </div>
+    </div>
+
+    <div class="macros">
+      <div class="macro">
+        <div class="macro-top"><i class="macro-dot" style="background:var(--sage)"></i><span class="macro-name">Proteína</span></div>
+        <div class="macro-val" style="color:var(--sage)">${t.p}<span style="font-size:11px;color:var(--dim)">/${mt.p}g</span></div>
+        <div style="height:3px;background:var(--hairline);border-radius:99px;margin-top:6px;overflow:hidden">
+          <i style="display:block;height:100%;width:${Math.min(t.p/mt.p,1)*100}%;background:var(--sage);border-radius:99px;transition:width .4s"></i>
+        </div>
+      </div>
+      <div class="macro">
+        <div class="macro-top"><i class="macro-dot" style="background:var(--amber)"></i><span class="macro-name">Carbos</span></div>
+        <div class="macro-val" style="color:${t.c>mt.c?'var(--clay)':'var(--amber)'}">${t.c}<span style="font-size:11px;color:var(--dim)">/${mt.c}g</span></div>
+        <div style="height:3px;background:var(--hairline);border-radius:99px;margin-top:6px;overflow:hidden">
+          <i style="display:block;height:100%;width:${Math.min(t.c/Math.max(mt.c,1),1)*100}%;background:${t.c>mt.c?'var(--clay)':'var(--amber)'};border-radius:99px;transition:width .4s"></i>
+        </div>
+      </div>
+      <div class="macro">
+        <div class="macro-top"><i class="macro-dot" style="background:var(--clay)"></i><span class="macro-name">Grasas</span></div>
+        <div class="macro-val" style="color:${t.f>mt.f?'var(--clay)':'#E9A23B'}">${t.f}<span style="font-size:11px;color:var(--dim)">/${mt.f}g</span></div>
+        <div style="height:3px;background:var(--hairline);border-radius:99px;margin-top:6px;overflow:hidden">
+          <i style="display:block;height:100%;width:${Math.min(t.f/Math.max(mt.f,1),1)*100}%;background:${t.f>mt.f?'var(--clay)':'var(--clay)'};border-radius:99px;transition:width .4s"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- BALANCE SEMANAL -->
+    ${isToday?`
+    <div class="slabel">Balance de la semana</div>
+    <div style="background:var(--slate);border:1px solid var(--hairline);border-radius:15px;padding:16px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">
+        <span style="font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--mute)">Déficit acumulado</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--dim)">día ${w.daysElapsed} de 7</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:-.03em;color:${w.deficit>=0?'var(--sage)':'var(--clay)'}">${w.deficit>=0?'':'+'}${Math.abs(Math.round(w.deficit))}</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--dim)">de ${w.target}</span>
+      </div>
+      <div style="height:5px;background:var(--hairline);border-radius:99px;overflow:hidden;margin:11px 0 12px">
+        <i style="display:block;height:100%;width:${(wPct*100).toFixed(1)}%;background:${w.deficit>=0?'var(--sage)':'var(--clay)'};border-radius:99px;transition:width .6s ease"></i>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-family:var(--mono);font-size:11px;color:var(--mute)">
+        <div>Comido <b style="color:var(--bone);font-weight:500">${Math.round(w.eaten)}</b></div>
+        <div style="text-align:right">Gastado <b style="color:var(--bone);font-weight:500">${Math.round(w.burned)}</b></div>
+      </div>
+
+      ${w.daysLeft>0?`
+      <div style="margin-top:13px;padding-top:13px;border-top:1px solid var(--hairline)">
+        <div style="font-size:13px;color:var(--mute);line-height:1.6">
+          Te quedan <b style="color:var(--bone)">${w.daysLeft} día${w.daysLeft>1?'s':''}</b>. Para cerrar la semana en objetivo puedes comer
+          <b style="color:var(--amber);font-family:var(--display);font-size:16px">${Math.max(0,w.left)}</b> kcal más
+          <span style="color:var(--dim)">(~${Math.round(Math.max(0,w.left)/w.daysLeft)}/día)</span>.
+        </div>
+      </div>`:`
+      <div style="margin-top:13px;padding-top:13px;border-top:1px solid var(--hairline);font-size:13px;color:var(--mute)">
+        Semana cerrada. ${w.deficit>=w.target?'Objetivo cumplido \u2713':'Te has quedado a '+Math.round(w.target-w.deficit)+' kcal.'}
+      </div>`}
+    </div>
+
+    <div class="fast" style="margin-top:12px">
+      <div class="fast-l">
+        <div class="fast-state">${f.open?'Ventana abierta':'En ayuno'}</div>
+        <div class="fast-time ${f.open?'open':'shut'}">${hhmm(f.left)} ${f.open?'para cerrar':'para comer'}</div>
+      </div>
+      <div class="fast-bar ${f.open?'':'shut'}"><i style="width:${(fpct*100).toFixed(1)}%"></i></div>
+    </div>
+`:''}
+
+    <div class="slabel">Foto + IA</div>
+    ${photoErr?`<div class="err">${photoErr}</div>`:''}
+    ${photoBusy?`<div class="busy"><i class="spin"></i>${photoRetry?`Gemini está saturado, reintentando (${photoRetry.attempt}/${photoRetry.max})…`:'Analizando…'}</div>`:''}
+    ${photoProposal?`
+      <div class="proposal">
+        <div class="proposal-name">${esc(photoProposal.name)}</div>
+        <div class="proposal-kcal">${Math.round(photoProposal.kcal)}<em>kcal</em></div>
+        <div class="proposal-macros">P ${Math.round(photoProposal.p||0)}g · C ${Math.round(photoProposal.c||0)}g · G ${Math.round(photoProposal.f||0)}g</div>
+        ${photoProposal.note?`<div class="proposal-note">${esc(photoProposal.note)}</div>`:''}
+        <div class="proposal-acts">
+          <button class="pbtn add" onclick="acceptPhotoProposal()">Añadir al día</button>
+          <button class="pbtn skip" onclick="photoProposal=null;render()">Descartar</button>
+        </div>
+      </div>`:''}
+    <div style="background:var(--slate);border:1px solid var(--hairline);border-radius:13px;padding:12px;margin-bottom:14px">
+      ${photoPreview?`<div class="thumb" style="margin:0 0 8px"><img src="${photoPreview}"><button onclick="clearPhoto();render()">×</button></div>`:''}
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <label class="cbtn ${photoImg?'armed':''}" style="flex-shrink:0" title="Hacer foto">
+          <input type="file" accept="image/*" capture="environment" onchange="pickPhoto(this.files[0])">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </label>
+        <label class="cbtn ${photoImg?'armed':''}" style="flex-shrink:0" title="Elegir de galería">
+          <input type="file" accept="image/*" onchange="pickPhoto(this.files[0])">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        </label>
+        <input id="photoText" placeholder="${photoImg?'Añade contexto o el peso…':'O describe qué has comido'}"
+          style="flex:1;min-width:0;background:var(--graphite);border:1px solid var(--hairline);border-radius:14px;padding:12px 14px;color:var(--bone);font-family:var(--body);font-size:14.5px;outline:none"
+          onfocus="this.style.borderColor='var(--amber)'" onblur="this.style.borderColor='var(--hairline)'"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();analyzePhoto()}">
+        <button class="cbtn send" style="flex-shrink:0" onclick="analyzePhoto()" ${photoBusy?'disabled':''}>↑</button>
+      </div>
+      ${!S.geminiKey?`<div class="hint" style="margin-top:9px">Añade tu clave de Gemini gratuita en Ajustes para activar esto.</div>`:''}
+    </div>
+
+    <div class="slabel">Comidas ${isToday?'de hoy':`del ${vLabel}`}</div>
+    ${list.length?list.map((e,i)=> editIdx===i ? `
+      <div class="entry" style="flex-direction:column;align-items:stretch;gap:9px;border-color:var(--amber)">
+        <input id="eName" value="${esc(e.name)}"
+          style="width:100%;background:var(--ink);border:1px solid var(--hairline);border-radius:10px;padding:10px 12px;color:var(--bone);font-family:var(--body);font-size:14.5px;outline:none">
+        <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:6px">
+          <input id="eK" type="number" inputmode="numeric" value="${e.kcal}"
+            style="background:var(--ink);border:1px solid var(--amber);border-radius:10px;padding:10px 4px;color:var(--amber);font-family:var(--mono);font-size:14px;text-align:center;outline:none;min-width:0">
+          <input id="eP" type="number" inputmode="numeric" value="${e.p}"
+            style="background:var(--ink);border:1px solid var(--hairline);border-radius:10px;padding:10px 4px;color:var(--sage);font-family:var(--mono);font-size:13px;text-align:center;outline:none;min-width:0">
+          <input id="eC" type="number" inputmode="numeric" value="${e.c}"
+            style="background:var(--ink);border:1px solid var(--hairline);border-radius:10px;padding:10px 4px;color:var(--amber);font-family:var(--mono);font-size:13px;text-align:center;outline:none;min-width:0">
+          <input id="eF" type="number" inputmode="numeric" value="${e.f}"
+            style="background:var(--ink);border:1px solid var(--hairline);border-radius:10px;padding:10px 4px;color:var(--clay);font-family:var(--mono);font-size:13px;text-align:center;outline:none;min-width:0">
+        </div>
+        <div style="display:flex;gap:7px">
+          <button class="pbtn add" style="flex:1;padding:10px" onclick="saveEdit(${i})">Guardar</button>
+          <button class="pbtn skip" style="padding:10px 14px" onclick="editIdx=null;render()">Cancelar</button>
+        </div>
+      </div>` : `
+      <div class="entry">
+        <div class="entry-body" onclick="editIdx=${i};render()" style="cursor:pointer">
+          <div class="entry-name">${esc(e.name)}</div>
+          <div class="entry-macros">P ${e.p}g · C ${e.c}g · G ${e.f}g</div>
+        </div>
+        <div class="entry-kcal">${e.kcal}</div>
+        <button class="entry-x" onclick="removeEntry(${i})">×</button>
+      </div>`).join('')
+      :`<div class="empty">Todavía no has registrado nada.<br>Escribe abajo el nombre y las kcal.</div>`}
+  </div>
+
+  <div class="composer">
+    <div class="composer-in" style="flex-direction:column;gap:8px;align-items:stretch">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:6px">
+        <input id="mName" placeholder="Qué has comido"
+          style="width:100%;background:var(--graphite);border:1px solid var(--hairline);border-radius:14px;padding:13px 15px;color:var(--bone);font-family:var(--body);font-size:15px;outline:none;min-width:0"
+          onfocus="this.style.borderColor='var(--amber)'" onblur="this.style.borderColor='var(--hairline)'">
+        <select id="mUnit" onchange="unitHint()"
+          style="background:var(--graphite);border:1px solid var(--hairline);border-radius:14px;padding:13px 8px;color:var(--mute);font-family:var(--mono);font-size:12px;outline:none">
+          <option value="100g">por 100g</option>
+          <option value="ud">por unidad</option>
+          <option value="total">total</option>
+        </select>
+      </div>
+      <div id="mAmtRow" style="display:none">
+        <input id="mAmt" type="number" inputmode="decimal" placeholder="Cantidad"
+          style="width:100%;background:var(--graphite);border:1px solid var(--hairline);border-radius:14px;padding:11px 15px;color:var(--bone);font-family:var(--mono);font-size:14px;outline:none">
+      </div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr auto;gap:6px">
+        <input id="mK" type="number" inputmode="numeric" placeholder="kcal"
+          style="background:var(--graphite);border:1px solid var(--amber);border-radius:12px;padding:12px 8px;color:var(--amber);font-family:var(--mono);font-size:15px;font-weight:500;text-align:center;outline:none;min-width:0">
+        <input id="mP" type="number" inputmode="numeric" placeholder="P"
+          style="background:var(--graphite);border:1px solid var(--hairline);border-radius:12px;padding:12px 4px;color:var(--sage);font-family:var(--mono);font-size:14px;text-align:center;outline:none;min-width:0">
+        <input id="mC" type="number" inputmode="numeric" placeholder="C"
+          style="background:var(--graphite);border:1px solid var(--hairline);border-radius:12px;padding:12px 4px;color:var(--amber);font-family:var(--mono);font-size:14px;text-align:center;outline:none;min-width:0">
+        <input id="mF" type="number" inputmode="numeric" placeholder="G"
+          style="background:var(--graphite);border:1px solid var(--hairline);border-radius:12px;padding:12px 4px;color:var(--clay);font-family:var(--mono);font-size:14px;text-align:center;outline:none;min-width:0">
+        <button class="cbtn send" style="width:46px;height:auto" onclick="manualAdd()">\u2191</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function askWatch(){
+  const d=today();
+  if(typeof d.burn!=='object') d.burn={watch:0,sessions:[]};
+  const v=prompt('Kcal activas del reloj (sin contar entreno):', d.burn.watch||'');
+  if(v===null) return;
+  d.burn.watch=Math.max(0,+v||0);
+  save(); toast(d.burn.watch?`Reloj: ${d.burn.watch} kcal`:'Reloj borrado'); render();
+}
+function askSession(){
+  const d=today();
+  if(typeof d.burn!=='object') d.burn={watch:0,sessions:[]};
+  const kcalStr=prompt('Kcal quemadas en el entreno (boxeo, gym…):', d.burn.sessions[0]?.kcal||'');
+  if(kcalStr===null) return;
+  const kcal=Math.max(0,+kcalStr||0);
+  const nameStr=prompt('Nombre del entreno:', d.burn.sessions[0]?.name||'Boxeo');
+  if(nameStr===null) return;
+  if(kcal>0) d.burn.sessions=[{name:nameStr||'Entreno',kcal}];
+  else d.burn.sessions=[];
+  save(); toast(kcal?`${nameStr}: ${kcal} kcal`:'Sesión borrada'); render();
+}
+function unitHint(){
+  const u=document.getElementById('mUnit').value;
+  const row=document.getElementById('mAmtRow');
+  const amt=document.getElementById('mAmt');
+  if(u==='total'){row.style.display='none'}
+  else{
+    row.style.display='block';
+    amt.placeholder = u==='100g' ? 'Cuántos gramos has comido' : 'Cuántas unidades has comido';
+  }
+}
+
+function manualAdd(){
+  const n=document.getElementById('mName').value.trim();
+  const unit=document.getElementById('mUnit').value;
+  const amt=+document.getElementById('mAmt').value||0;
+  const bk=+document.getElementById('mK').value;
+  if(!bk){toast('Falta el n\u00famero de kcal');return}
+  const bp=+document.getElementById('mP').value||0;
+  const bc=+document.getElementById('mC').value||0;
+  const bf=+document.getElementById('mF').value||0;
+
+  // factor: cuánto de la unidad base corresponde a lo comido
+  let factor=1, label=n||'Comida';
+  if(unit==='100g'){
+    if(!amt){toast('Indica cu\u00e1ntos gramos');return}
+    factor=amt/100; label=`${n||'Comida'} \u00b7 ${amt}g`;
+  }else if(unit==='ud'){
+    if(!amt){toast('Indica cu\u00e1ntas unidades');return}
+    factor=amt; label=amt===1?(n||'Comida'):`${n||'Comida'} \u00d7${amt}`;
+  }
+
+  addEntry({name:label,kcal:Math.round(bk*factor),p:Math.round(bp*factor),c:Math.round(bc*factor),f:Math.round(bf*factor)});
+
+  // guarda el alimento con sus valores BASE, no la porción
+  if(n && !S.pantry.some(p=>p.name.toLowerCase()===n.toLowerCase())){
+    S.pantry.unshift({name:n,unit,kcal:bk,p:bp,c:bc,f:bf});
+    S.pantry=S.pantry.slice(0,150);
+  }
+  save(); toast('A\u00f1adido'); render();
+}
+
+function vPantry(){
+  const q=pQuery.trim().toLowerCase();
+  const hits=S.pantry.map((p,i)=>({p,i}))
+    .filter(({p})=>!q||p.name.toLowerCase().includes(q));
+  const isToday=!viewDate || viewDate===key();
+  return `
+  <div class="view">
+    <div class="slabel">Tus alimentos</div>
+
+    ${!isToday?(()=>{
+      const [vy,vm,vdd]=viewDate.split('-').map(Number);
+      const vLabel=`${SHORT[new Date(vy,vm-1,vdd).getDay()]} ${vdd}/${vm}`;
+      return `<div style="background:var(--graphite);border:1px solid var(--amber);border-radius:11px;padding:10px 13px;margin-bottom:12px;font-size:12.5px;color:var(--bone)">
+        Lo que añadas aquí irá a <b style="color:var(--amber)">${vLabel}</b>, no a hoy.
+      </div>`;
+    })():''}
+
+    <div style="position:relative;margin-bottom:12px">
+      <input id="pq" value="${esc(pQuery)}" placeholder="Buscar alimento"
+        oninput="pQuery=this.value;renderPantryList()"
+        style="width:100%;background:var(--graphite);border:1px solid var(--hairline);border-radius:12px;padding:11px 38px 11px 14px;color:var(--bone);font-family:var(--body);font-size:15px;outline:none"
+        onfocus="this.style.borderColor='var(--amber)'" onblur="this.style.borderColor='var(--hairline)'">
+      ${pQuery?`<button onclick="pQuery='';render()" style="position:absolute;right:5px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--dim);font-size:18px;padding:6px 10px;cursor:pointer">×</button>`:''}
+    </div>
+
+    <div style="font-size:12.5px;color:var(--dim);margin-bottom:14px;line-height:1.6">
+      Toca <b style="color:var(--sage)">+</b> y escribe los gramos o las unidades. La app calcula el resto.
+    </div>
+
+    <div id="plist">${pantryRows(hits)}</div>
+  </div>`;
+}
+
+function unitLabel(u){return u==='ud'?'por unidad':u==='total'?'total':'por 100g'}
+function amtLabel(u){return u==='ud'?'UNIDADES':u==='total'?'RACIONES':'GRAMOS'}
+function defAmt(u){return u==='100g'?100:1}
+
+function pantryRows(hits){
+  if(!S.pantry.length) return `<div class="empty">A\u00fan no hay alimentos guardados.<br>Se ir\u00e1n a\u00f1adiendo solos seg\u00fan registres comidas.</div>`;
+  if(!hits.length) return `<div class="empty">Ning\u00fan alimento coincide con la b\u00fasqueda.</div>`;
+  return hits.map(({p,i})=>{
+    const u=p.unit||'total';
+    return qtyIdx===i ? `
+    <div class="pitem" style="flex-direction:column;align-items:stretch;gap:10px;border-color:var(--amber)">
+      <div class="pitem-n">${esc(p.name)}</div>
+      <div style="display:flex;align-items:center;gap:9px">
+        <input id="qMul" type="number" inputmode="decimal" step="${u==='100g'?'1':'0.25'}" value="${defAmt(u)}"
+          oninput="previewQty(${i})"
+          style="width:88px;background:var(--ink);border:1px solid var(--amber);border-radius:10px;padding:10px;color:var(--amber);font-family:var(--mono);font-size:16px;text-align:center;outline:none">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--mute);letter-spacing:.08em">${amtLabel(u)}</span>
+        <span id="qPrev" style="margin-left:auto;font-family:var(--display);font-weight:600;font-size:19px;color:var(--amber)">${p.kcal}</span>
+      </div>
+      <div style="display:flex;gap:7px">
+        <button class="pbtn add" style="flex:1;padding:10px" onclick="addQty(${i})">A\u00f1adir al d\u00eda</button>
+        <button class="pbtn skip" style="padding:10px 14px" onclick="qtyIdx=null;render()">Cancelar</button>
+      </div>
+    </div>` : `
+    <div class="pitem">
+      <div class="pitem-b">
+        <div class="pitem-n">${esc(p.name)}</div>
+        <div class="pitem-m">${unitLabel(u)} \u00b7 P ${p.p}g \u00b7 C ${p.c}g \u00b7 G ${p.f}g</div>
+      </div>
+      <div class="pitem-k">${p.kcal}</div>
+      <button class="pitem-quick" onclick="qtyIdx=${i};render()" title="Elegir cantidad">+</button>
+      <button class="entry-x" onclick="delPantry(${i})">\u00d7</button>
+    </div>`}).join('');
+}
+
+function renderPantryList(){
+  const q=pQuery.trim().toLowerCase();
+  const hits=S.pantry.map((p,i)=>({p,i})).filter(({p})=>!q||p.name.toLowerCase().includes(q));
+  const el=document.getElementById('plist');
+  if(el) el.innerHTML=pantryRows(hits);
+}
+
+function factorFor(p,amt){
+  const u=p.unit||'total';
+  return u==='100g' ? amt/100 : u==='ud' ? amt : amt;
+}
+function previewQty(i){
+  const amt=+document.getElementById('qMul').value||0;
+  const el=document.getElementById('qPrev');
+  if(el) el.textContent=Math.round(S.pantry[i].kcal*factorFor(S.pantry[i],amt));
+}
+function addQty(i){
+  const amt=+document.getElementById('qMul').value;
+  if(!amt||amt<=0){toast('Indica la cantidad');return}
+  const p=S.pantry[i], u=p.unit||'total', f=factorFor(p,amt);
+  const label = u==='100g' ? `${p.name} \u00b7 ${amt}g`
+              : (amt===1 ? p.name : `${p.name} \u00d7${amt}`);
+  addEntry({name:label,kcal:Math.round(p.kcal*f),p:Math.round(p.p*f),c:Math.round(p.c*f),f:Math.round(p.f*f)});
+  qtyIdx=null; toast('A\u00f1adido al d\u00eda'); view='today'; render();
+}
+
+function delPantry(i){S.pantry.splice(i,1); save(); render()}
+
+function vHistory(){
+  // selector manual: ir a cualquier fecha aunque esté vacía
+  const picker = `
+  <div style="background:var(--slate);border:1px solid var(--hairline);border-radius:13px;padding:14px;margin-bottom:18px;display:flex;align-items:center;gap:10px">
+    <input id="jumpDate" type="date" value="${key()}" max="${key()}"
+      style="flex:1;background:var(--graphite);border:1px solid var(--hairline);border-radius:10px;padding:10px 12px;color:var(--bone);font-family:var(--mono);font-size:14px;outline:none">
+    <button onclick="jumpToDate()" style="background:var(--amber);color:var(--ink);border:none;border-radius:10px;padding:10px 16px;font-family:var(--body);font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap">Ir y editar</button>
+  </div>`;
+
+  // agrupa por semanas
+  const allKeys=Object.keys(S.days).filter(k=>{
+    const d=S.days[k]; return (d.meals&&d.meals.length)||d.burn;
+  }).sort().reverse();
+  if(!allKeys.length) return `<div class="view"><div class="slabel">Historial</div>${picker}<div class="empty">Sin datos todavía. Usa el buscador de arriba para añadir un día que se te haya pasado.</div></div>`;
+
+  const base=baseBurn();
+  const weeks={};
+  allKeys.forEach(k=>{
+    const [y,m,dd]=k.split('-').map(Number);
+    const wk=key(weekStart(new Date(y,m-1,dd)));
+    (weeks[wk]=weeks[wk]||[]).push(k);
+  });
+
+  const lastW=S.weights.slice(-8);
+
+  return `
+  <div class="view">
+    ${picker}
+    ${lastW.length?`
+    <div class="slabel">Peso</div>
+    <div style="background:var(--slate);border:1px solid var(--hairline);border-radius:15px;padding:16px;margin-bottom:6px">
+      <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:12px">
+        <span style="font-family:var(--display);font-weight:800;font-size:32px;letter-spacing:-.03em;color:var(--amber)">${lastW[lastW.length-1].kg}</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--mute)">kg</span>
+        ${lastW.length>1?(()=>{const dif=lastW[lastW.length-1].kg-lastW[0].kg;
+          return `<span style="margin-left:auto;font-family:var(--mono);font-size:12px;color:${dif<0?'var(--sage)':'var(--clay)'}">${dif>0?'+':''}${dif.toFixed(1)} kg</span>`})():''}
+      </div>
+      ${sparkline(lastW)}
+    </div>`:''}
+
+    <div class="slabel">Por semanas</div>
+    ${Object.keys(weeks).sort().reverse().map(wk=>{
+      const ks=weeks[wk];
+      let eaten=0,burned=0;
+      ks.forEach(k=>{const d=S.days[k]; eaten+=sum(d.meals).k; burned+=base+totalBurn(d)});
+      const def=burned-eaten;
+      const tgt=S.weekDeficit||3850;
+      const p=Math.max(0,Math.min(def/tgt,1));
+      const [wy,wm,wd]=wk.split('-').map(Number);
+      const end=new Date(wy,wm-1,wd+6);
+      return `
+      <div class="hday">
+        <div class="hday-top">
+          <div class="hday-date">${wd}/${wm} \u2013 ${end.getDate()}/${end.getMonth()+1} \u00b7 ${ks.length} d\u00edas</div>
+          <div style="display:flex;align-items:center;gap:9px">
+            <div class="hday-k" style="color:${def>=0?'var(--sage)':'var(--clay)'}">${def>=0?'\u2212':'+'}${Math.abs(Math.round(def))}</div>
+            <button onclick="deleteWeek('${wk}')" title="Borrar esta semana"
+              style="background:none;border:1px solid var(--hairline);border-radius:8px;width:26px;height:26px;color:var(--dim);font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">\u00d7</button>
+          </div>
+        </div>
+        <div class="hday-bar"><i style="width:${(p*100).toFixed(1)}%;background:${def>=0?'var(--sage)':'var(--clay)'}"></i></div>
+        <div class="hday-macros">Comido ${Math.round(eaten)} \u00b7 Gastado ${Math.round(burned)} \u00b7 Objetivo ${tgt}</div>
+        <div class="hday-items">${ks.sort().map(k=>{
+          const d=S.days[k], t=sum(d.meals);
+          const [,,dd]=k.split('-').map(Number);
+          const wdn=SHORT[new Date(k+'T12:00').getDay()];
+          const tb=totalBurn(d);
+          return `<span onclick="viewDate='${k}';view='today';render();window.scrollTo(0,0)" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--hairline);text-underline-offset:3px">${wdn} ${dd}: ${t.k} kcal${tb?` \u00b7 +${tb} act`:''}</span>`;
+        }).join('<br>')}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function sparkline(pts){
+  if(pts.length<2) return '';
+  const w=280,h=44;
+  const kgs=pts.map(p=>p.kg);
+  const min=Math.min(...kgs)-0.4, max=Math.max(...kgs)+0.4;
+  const rng=max-min||1;
+  const step=w/(pts.length-1);
+  const d=pts.map((p,i)=>`${i===0?'M':'L'} ${(i*step).toFixed(1)} ${(h-((p.kg-min)/rng)*h).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px;overflow:visible">
+    <path d="${d}" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${pts.map((p,i)=>`<circle cx="${(i*step).toFixed(1)}" cy="${(h-((p.kg-min)/rng)*h).toFixed(1)}" r="2.5" fill="var(--amber)"/>`).join('')}
+  </svg>`;
+}
+
+function vSetup(){
+  const b=S.bio;
+  const bmr=Math.round(10*b.weight+6.25*b.height-5*b.age+(b.sex==='m'?5:-161));
+  const cf=calibFactor();
+  const last=S.weights.length?S.weights[S.weights.length-1].kg:b.weight;
+  const perWeek=(S.weekDeficit/7700).toFixed(2);
+
+  return `
+  <div class="view">
+    <div class="slabel">Tu perfil</div>
+    <div class="grid2">
+      <div class="field"><label>Peso actual (kg)</label>
+        <input type="number" step="0.1" value="${b.weight}" onchange="S.bio.weight=+this.value||91;save();render()"></div>
+      <div class="field"><label>Altura (cm)</label>
+        <input type="number" value="${b.height}" onchange="S.bio.height=+this.value||184;save();render()"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Edad</label>
+        <input type="number" value="${b.age}" onchange="S.bio.age=+this.value||27;save();render()"></div>
+      <div class="field"><label>Metabolismo basal</label>
+        <input type="number" value="${bmr}" disabled style="color:var(--dim)">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Tu metabolismo basal (referencia)</label>
+      <input type="number" value="${bmr}" disabled style="color:var(--dim)">
+      <div class="hint">Solo informativo. El gasto del día NO suma esto — usa directamente lo que marca tu reloj (que ya incluye reposo + actividad) más el boxeo manual. Sumar el BMR encima del reloj sería contar tu metabolismo dos veces.
+      ${cf!==1?`<br><br><b style="color:var(--amber)">Corrección activa sobre el reloj: ×${cf.toFixed(2)}</b> (aprendida de tu peso real, por si el reloj se queda corto o se pasa).`:''}</div>
+    </div>
+
+    <div class="slabel">Objetivo</div>
+    <div class="field">
+      <label>Déficit semanal (kcal)</label>
+      <input type="number" step="350" value="${S.weekDeficit}" onchange="S.weekDeficit=+this.value||3850;save();render()">
+      <div class="hint">Ahora mismo: <b style="color:var(--amber)">${perWeek} kg por semana</b>. 3850 equivale a medio kilo.</div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Proteína diaria (g)</label>
+        <input type="number" value="${S.proteinTarget}" onchange="S.proteinTarget=+this.value||160;save();render()">
+        <div class="hint">${Math.round(b.weight*1.6)}–${Math.round(b.weight*2)} g recomendado.</div>
+      </div>
+      <div class="field">
+        <label>Grasas mínimas (g)</label>
+        <input type="number" value="${S.fatTarget||75}" onchange="S.fatTarget=+this.value||75;save();render()">
+        <div class="hint">Los carbos se calculan solos con lo que sobre.</div>
+      </div>
+    </div>
+    <div style="background:var(--slate);border:1px solid var(--hairline);border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-bottom:6px">Carbos hoy (calculados)</div>
+      <div style="font-family:var(--display);font-weight:700;font-size:22px;color:var(--amber)">${macroTargets().c}g</div>
+      <div style="font-size:12px;color:var(--dim);margin-top:3px">= (${todayBudget()} kcal − ${S.proteinTarget||160}g prot×4 − ${S.fatTarget||75}g gras×9) ÷ 4</div>
+    </div>
+
+    <div class="slabel">Registro de peso</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="wKg" type="number" step="0.1" placeholder="${last}" 
+        style="flex:1;background:var(--graphite);border:1px solid var(--hairline);border-radius:11px;padding:11px 13px;color:var(--bone);font-family:var(--mono);font-size:15px;outline:none;min-width:0">
+      <button class="wbtn hot" style="width:auto;padding:11px 20px;margin:0" onclick="addWeight()">Registrar</button>
+    </div>
+    <div class="hint" style="margin-top:-4px;margin-bottom:14px">Pésate los lunes al despertar, recién levantado, sin ropa, después del baño. Un solo día no dice nada por el agua/sal — con una vez a la semana, a la misma hora, es suficiente para ver la tendencia real.</div>
+    <button class="wbtn" onclick="runCalibration()">Calibrar gasto con mi peso real</button>
+    <div class="hint" style="margin-top:-4px;margin-bottom:14px">Compara lo que la app cree que gastas con lo que de verdad pasó según tu peso, y ajusta el cálculo. Hazlo cada 1-2 semanas, cuando tengas suficientes pesos registrados.</div>
+
+    <div class="slabel">Foto + IA (Gemini, gratis)</div>
+    <div class="field">
+      <label>Clave de API de Gemini</label>
+      <input type="password" value="${S.geminiKey||''}" placeholder="AIza…"
+             onchange="S.geminiKey=this.value.trim();save();toast('Clave guardada')">
+      <div class="hint">Gratis en aistudio.google.com → "Get API key". Se guarda solo en este dispositivo.</div>
+    </div>
+
+    <div class="slabel">Ayuno intermitente</div>
+    <div class="grid2">
+      <div class="field"><label>Dejo de comer</label>
+        <input type="time" value="${S.fast.start}" onchange="S.fast.start=this.value;save();render()"></div>
+      <div class="field"><label>Vuelvo a comer</label>
+        <input type="time" value="${S.fast.end}" onchange="S.fast.end=this.value;save();render()"></div>
+    </div>
+
+    <div class="slabel">Copia de seguridad</div>
+    <button class="wbtn hot" onclick="exportJSON()">Descargar mis datos</button>
+    <label class="wbtn" style="display:block;text-align:center;position:relative;overflow:hidden">
+      Restaurar desde archivo
+      <input type="file" accept="application/json" onchange="importJSON(this.files[0])"
+             style="position:absolute;inset:0;opacity:0;cursor:pointer">
+    </label>
+    <button class="wbtn danger" onclick="wipe()">Borrar todo</button>
+    <div class="hint" style="margin-top:10px">Los datos viven en este navegador. Descarga una copia de vez en cuando para no perderlos.</div>
+  </div>`;
+}
+
+/* ¿Toca pesarse hoy? Solo los lunes, al despertar. */
+function weightDueToday(){
+  const dow=new Date().getDay(); // 1=lunes
+  if(dow!==1) return false;
+  return !S.weights.some(w=>w.d===key());
+}
+
+/* Con un peso registrado por semana (lunes), la "media de últimos N días"
+   no tiene sentido — se busca el registro más cercano a N días atrás. */
+function weightNearDaysAgo(daysAgo,tolerance=3){
+  const now=new Date();
+  let best=null,bestDiff=Infinity;
+  S.weights.forEach(w=>{
+    const [y,m,dd]=w.d.split('-').map(Number);
+    const diff=Math.round((now-new Date(y,m-1,dd))/86400000);
+    const off=Math.abs(diff-daysAgo);
+    if(off<=tolerance&&off<bestDiff){bestDiff=off;best=w}
+  });
+  return best;
+}
+
+/* Calibración: compara el gasto que el reloj+boxeo dieron en las últimas
+   2 semanas (lunes a lunes) con el gasto REAL que se deduce del cambio
+   de peso entre esos dos lunes, y ajusta el factor de corrección. */
+function runCalibration(){
+  const now=new Date();
+  const wPrev=weightNearDaysAgo(14); // lunes de hace 2 semanas
+  const wCurr=weightNearDaysAgo(0);  // este lunes (o el más reciente)
+  if(!wPrev||!wCurr){toast('Necesitas al menos 2 pesajes semanales (con ~14 días entre ellos) para calibrar');return}
+
+  const [py,pm,pdd]=wPrev.d.split('-').map(Number);
+  const [cy,cm,cdd]=wCurr.d.split('-').map(Number);
+  const realDays=Math.round((new Date(cy,cm-1,cdd)-new Date(py,pm-1,pdd))/86400000);
+  if(realDays<10){toast('Necesitas más separación entre pesajes (~2 semanas) para que la calibración sea fiable');return}
+
+  let eaten=0,burnedRaw=0,days=0;
+  for(let i=0;i<realDays;i++){
+    const x=new Date(cy,cm-1,cdd); x.setDate(x.getDate()-i);
+    const k=key(x);
+    const d=S.days[k];
+    if(d&&d.meals&&d.meals.length){
+      eaten+=sum(d.meals).k;
+      const raw=d.burn?((typeof d.burn==='number')?d.burn:(d.burn.watch||0)+(d.burn.sessions||[]).reduce((a,s)=>a+s.kcal,0)):0;
+      burnedRaw+=raw;
+      days++;
+    }
+  }
+  if(days<Math.round(realDays*0.6)){toast(`Solo hay ${days} de ${realDays} días con comidas registradas en ese periodo — registra más días y vuelve a intentarlo`);return}
+  if(burnedRaw<=0){toast('Necesitas tener kcal del reloj registradas esos días');return}
+
+  const kgChange=wCurr.kg-wPrev.kg; // negativo = perdiste peso
+  const realBurnedTotal=eaten-(kgChange*7700); // si perdiste, gastaste más de lo comido
+  const factor=realBurnedTotal/burnedRaw;
+  const clamped=Math.max(0.6,Math.min(1.6,factor));
+  S.calib[key()]={factor:Math.round(clamped*100)/100, at:key(), kgChange:Math.round(kgChange*100)/100, days:realDays};
+  save();
+  const perWeekChange=kgChange*7/realDays;
+  toast(`Calibrado ×${clamped.toFixed(2)} — peso ${perWeekChange>=0?'+':''}${perWeekChange.toFixed(2)}kg/semana`);
+  render();
+}
+
+function addWeight(){
+  const el=document.getElementById('wKg');
+  const kg=+el.value;
+  if(!kg||kg<30||kg>300){toast('Peso no v\u00e1lido');return}
+  const k=key();
+  const i=S.weights.findIndex(w=>w.d===k);
+  if(i>=0) S.weights[i].kg=kg; else S.weights.push({d:k,kg});
+  S.weights.sort((a,b)=>a.d<b.d?-1:1);
+  S.bio.weight=kg;
+  save(); toast('Peso registrado'); render();
+}
+
+function wipe(){
+  if(confirm('Se borrarán todas las comidas, alimentos y ajustes. ¿Continuar?')){
+    S=JSON.parse(JSON.stringify(BLANK)); save(); render(); toast('Todo borrado');
+  }
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function render(){
+  const now=new Date();
+  document.getElementById('datepill').textContent=`${DAYS[now.getDay()]} · ${todayBudget()} kcal`;
+  document.getElementById('app').innerHTML=
+    view==='today'?vToday():view==='pantry'?vPantry():view==='history'?vHistory():vSetup();
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
+}
+
+document.querySelectorAll('.tab').forEach(b=>{
+  b.onclick=()=>{
+    view=b.dataset.v;
+    editIdx=null; qtyIdx=null; quickTotal=false;
+    photoProposal=null; photoErr=null; photoRetry=null; clearPhoto();
+    if(view!=='pantry') viewDate=null; // Alimentos no rompe el día que estás editando
+    render();
+    window.scrollTo(0,0);
+  };
+});
+
+render();
+setInterval(()=>{
+  const ae=document.activeElement;
+  const typing=ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA' || ae.tagName==='SELECT');
+  const busy=photoBusy || photoProposal;
+  if(view==='today' && !typing && !busy) render();
+},60000);
+</script>
+</body>
+</html>
