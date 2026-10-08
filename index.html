@@ -324,7 +324,8 @@ body{
 const KEY='balance:v1';
 const BLANK={
   // perfil
-  bio:{weight:91,height:184,age:27,sex:'m',base:2200},
+  bio:{weight:91,height:184,age:27,sex:'m',base:1900},
+  watchFactor:0.85,
   // objetivo semanal de déficit (kcal)
   weekDeficit:3850,
   proteinTarget:160,
@@ -335,6 +336,16 @@ const BLANK={
   pantry:[],
   weights:[]    // {d:'YYYY-MM-DD', kg:91}
 };
+// v2: el reloj solo mide kcal ACTIVAS -> la base es el basal (~1900), no 2200
+function migrateBase(m){
+  if(!m.bio) m.bio={...BLANK.bio};
+  if(m.baseV!==2){
+    if(!m.bio.base||m.bio.base===2200||m.bio.base>2000) m.bio.base=1900;
+    m.baseV=2;
+  }
+  if(m.watchFactor==null) m.watchFactor=0.85;
+  return m;
+}
 function load(){
   try{
     const r=localStorage.getItem(KEY);
@@ -349,7 +360,7 @@ function load(){
         else if(typeof m.days[k].burn==='number'){m.days[k].burn={watch:m.days[k].burn,sessions:[]}}
       }
       if(!m.bio) m.bio={...BLANK.bio};
-      return m;
+      return migrateBase(m);
     }
   }catch(e){}
   return JSON.parse(JSON.stringify(BLANK));
@@ -426,7 +437,7 @@ function saveQuickTotal(){
   const f=+document.getElementById('qtF').value||0;
   const d=today();
   d.meals=[{name:'Total del día',kcal:Math.round(kcal),p:Math.round(p),c:Math.round(c),f:Math.round(f)}];
-  d.burn={watch:burn,sessions:[]};
+  d.burn={watch:burn,sessions:(d.burn&&d.burn.sessions)||[]};
   save(); quickTotal=false; toast('Día registrado'); render();
 }
 
@@ -615,7 +626,7 @@ function dayIndex(d=new Date()){return (d.getDay()+6)%7}
 /* Balance semanal: gasto = base + quemadas registradas */
 function weekStats(){
   const ks=weekKeys(), idx=dayIndex();
-  const base=S.bio.base||2200;
+  const base=S.bio.base||1900;
   let eaten=0,burned=0,prot=0,daysElapsed=0;
   ks.forEach((k,i)=>{
     const d=S.days[k];
@@ -649,7 +660,7 @@ function avgBurn(){
 
 /* Presupuesto sugerido para HOY */
 function todayBudget(){
-  const base=S.bio.base||2200;
+  const base=S.bio.base||1900;
   const d=today();
   const burn=base+totalBurn(d);
   const daily=Math.round((S.weekDeficit||3850)/7);
@@ -659,7 +670,8 @@ function todayBudget(){
 function totalBurn(d){
   if(!d||!d.burn) return 0;
   if(typeof d.burn==='number') return d.burn;
-  return (d.burn.watch||0)+(d.burn.sessions||[]).reduce((a,s)=>a+s.kcal,0);
+  const wf=(S.watchFactor==null?0.85:S.watchFactor);
+  return Math.round((d.burn.watch||0)*wf)+(d.burn.sessions||[]).reduce((a,s)=>a+s.kcal,0);
 }
 
 /* Macros objetivo dinámicos */
@@ -751,7 +763,7 @@ function importJSON(file){
   fr.onload=()=>{
     try{
       const d=JSON.parse(fr.result);
-      S={...BLANK,...d}; save(); render(); toast('Datos restaurados');
+      S=migrateBase({...BLANK,...d}); save(); render(); toast('Datos restaurados');
     }catch(e){ toast('El archivo no es válido') }
   };
   fr.readAsText(file);
@@ -800,8 +812,8 @@ function vToday(){
             style="width:100%;min-width:0;background:var(--ink);border:1px solid var(--amber);border-radius:9px;padding:9px;color:var(--amber);font-family:var(--mono);font-size:14px;text-align:center;outline:none;box-sizing:border-box">
         </div>
         <div>
-          <div style="font-family:var(--mono);font-size:9.5px;color:var(--mute);margin-bottom:4px;letter-spacing:.06em">GASTO ACTIVO</div>
-          <input id="qtBurn" type="number" inputmode="numeric" placeholder="kcal" value="${totalBurn(d)||''}"
+          <div style="font-family:var(--mono);font-size:9.5px;color:var(--mute);margin-bottom:4px;letter-spacing:.06em">RELOJ (KCAL ACTIVAS)</div>
+          <input id="qtBurn" type="number" inputmode="numeric" placeholder="kcal" value="${(d.burn&&d.burn.watch)||''}"
             style="width:100%;min-width:0;background:var(--ink);border:1px solid var(--hairline);border-radius:9px;padding:9px;color:var(--sage);font-family:var(--mono);font-size:14px;text-align:center;outline:none;box-sizing:border-box">
         </div>
       </div>
@@ -1184,7 +1196,7 @@ function vHistory(){
   }).sort().reverse();
   if(!allKeys.length) return `<div class="view"><div class="slabel">Historial</div>${picker}<div class="empty">Sin datos todavía. Usa el buscador de arriba para añadir un día que se te haya pasado.</div></div>`;
 
-  const base=S.bio.base||2200;
+  const base=S.bio.base||1900;
   const weeks={};
   allKeys.forEach(k=>{
     const [y,m,dd]=k.split('-').map(Number);
@@ -1282,8 +1294,13 @@ function vSetup(){
 
     <div class="field">
       <label>Gasto base diario (sin ejercicio)</label>
-      <input type="number" value="${b.base}" onchange="S.bio.base=+this.value||2200;save();render()">
-      <div class="hint">Tu basal (${bmr}) más el gasto de estar despierto trabajando sentado. Sobre esto se suman las kcal activas que registres cada día.</div>
+      <input type="number" value="${b.base}" onchange="S.bio.base=+this.value||1900;save();render()">
+      <div class="hint">Solo tu basal (calculado: ${bmr}). El reloj mide kcal activas (pasos y movimiento), así que no hay que sumar más aquí. Sobre esto se añaden reloj y entrenos.</div>
+    </div>
+    <div class="field">
+      <label>Cuánto cuentas del reloj (%)</label>
+      <input type="number" value="${Math.round((S.watchFactor==null?0.85:S.watchFactor)*100)}" onchange="S.watchFactor=Math.min(120,Math.max(0,+this.value||85))/100;save();render()">
+      <div class="hint">Los relojes suelen sobreestimar. 85 % es prudente; sube a 100 si tu peso baja más rápido de lo esperado, bájalo si no baja. El boxeo con banda de pecho se cuenta al 100 %.</div>
     </div>
 
     <div class="slabel">Objetivo</div>
