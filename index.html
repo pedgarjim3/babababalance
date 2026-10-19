@@ -375,7 +375,7 @@ let qtyIdx=null;
 let viewDate=null; // null = hoy, o 'YYYY-MM-DD' para editar un dia pasado
 let quickTotal=false;
 let photoImg=null, photoMime='image/jpeg', photoPreview=null;
-let photoBusy=false, photoProposal=null, photoErr=null;
+let photoBusy=false, photoProposal=null, photoErr=null, photoPctVal=null;
 let photoRetry=null; // {attempt, max} mientras reintenta tras un fallo temporal
 
 
@@ -475,7 +475,7 @@ async function analyzePhoto(){
   if(!S.geminiKey){toast('Añade tu clave de Gemini en Ajustes'); return}
   photoBusy=true; photoProposal=null; photoErr=null; photoRetry=null; render();
   try{
-    photoProposal=await callGemini(text);
+    photoProposal=applyAiMargin(await callGemini(text), photoPctVal);
   }catch(e){
     photoErr=e.message;
   }
@@ -592,6 +592,19 @@ async function callGemini(text){
   throw lastErr||new Error('No se pudo contactar con Gemini.');
 }
 
+// Margen por aceite, salsas y raciones que la IA no ve. El extra se cuenta como grasa.
+function aiMarginPct(){ return S.aiMargin==null?15:S.aiMargin }
+function applyAiMargin(p,pct){
+  const pc=(pct==null?aiMarginPct():pct);
+  const m=pc/100;
+  if(!p||!m||p.margined!=null) return p;
+  const extra=Math.round((+p.kcal||0)*m);
+  p.kcal=Math.max(0,(+p.kcal||0)+extra);
+  p.f=Math.max(0,Math.round(((+p.f||0)+extra/9)*10)/10);
+  p.margined=pc;
+  p.note=(p.note?p.note+' \u00b7 ':'')+`Incluye ${pc>0?'+':''}${pc} % de margen.`;
+  return p;
+}
 function acceptPhotoProposal(){
   if(!photoProposal) return;
   addEntry(photoProposal);
@@ -602,11 +615,46 @@ function acceptPhotoProposal(){
     S.pantry=S.pantry.slice(0,150);
   }
   save();
-  photoProposal=null; clearPhoto();
+  photoProposal=null; photoPctVal=null; clearPhoto();
   const ta=document.getElementById('photoText'); if(ta) ta.value='';
   toast('Añadido al día'); render();
 }
 
+function calibCard(){
+  const W=S.weights; if(W.length<2) return '';
+  const base=S.bio.base||1900;
+  const pd=k=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)};
+  const b=W[W.length-1];
+  // peso anterior: el mas reciente que este al menos 6 dias antes
+  let a=null;
+  for(let i=W.length-2;i>=0;i--){ if((pd(b.d)-pd(W[i].d))/864e5>=6){a=W[i];break} }
+  if(!a) return '';
+  const n=Math.round((pd(b.d)-pd(a.d))/864e5);
+  let eaten=0,burned=0,logged=0;
+  for(let i=0;i<n;i++){
+    const k=key(new Date(pd(a.d).getFullYear(),pd(a.d).getMonth(),pd(a.d).getDate()+i));
+    const d=S.days[k];
+    if(d&&d.meals&&d.meals.length){logged++; eaten+=sum(d.meals).k; burned+=base+totalBurn(d)}
+  }
+  if(logged<Math.ceil(n*0.7)) return '';
+  const est=(burned-eaten)/logged*n;           // deficit que cree la app
+  const real=-(b.kg-a.kg)*7700;                // deficit que dice la bascula
+  const gap=Math.round((est-real)/n);
+  const f=pd(a.d), t=pd(b.d);
+  const fmt=x=>x.getDate()+'/'+(x.getMonth()+1);
+  return `
+  <div class="slabel">Calibraci\u00f3n</div>
+  <div style="background:var(--slate);border:1px solid var(--hairline);border-radius:15px;padding:16px;margin-bottom:6px;font-size:13px;line-height:1.5;color:var(--dim)">
+    <div style="font-family:var(--mono);font-size:11px;color:var(--mute);margin-bottom:8px">${fmt(f)} \u2192 ${fmt(t)} \u00b7 ${logged}/${n} d\u00edas registrados</div>
+    <div>La app calcula un d\u00e9ficit de <b style="color:var(--bone)">${Math.round(est)}</b> kcal (\u2248 ${(est/7700).toFixed(2)} kg).</div>
+    <div>La b\u00e1scula dice <b style="color:var(--bone)">${(b.kg-a.kg>0?'+':'')}${(b.kg-a.kg).toFixed(1)} kg</b> (\u2248 ${Math.round(real)} kcal).</div>
+    <div style="margin-top:8px;color:${Math.abs(gap)>250?'var(--clay)':'var(--sage)'}">${gap>250
+      ?`Desfase de ~${gap} kcal/d\u00eda: est\u00e1s comiendo m\u00e1s de lo que apuntas o gastando menos de lo que cuenta. Una semana es poco (\u00b11 kg de agua); mira la tendencia de 3-4 semanas.`
+      :gap<-250
+      ?`Pierdes ~${-gap} kcal/d\u00eda m\u00e1s de lo que calcula la app: comes menos de lo que apuntas o gastas m\u00e1s. Una semana es poco; mira la tendencia.`
+      :`Casi cuadra (${gap} kcal/d\u00eda de desfase). Los n\u00fameros son fiables.`}</div>
+  </div>`;
+}
 function sum(list){
   return (list||[]).reduce((a,e)=>({k:a.k+(+e.kcal||0),p:a.p+(+e.p||0),c:a.c+(+e.c||0),f:a.f+(+e.f||0)}),{k:0,p:0,c:0,f:0});
 }
@@ -958,6 +1006,12 @@ function vToday(){
           onkeydown="if(event.key==='Enter'){event.preventDefault();analyzePhoto()}">
         <button class="cbtn send" style="flex-shrink:0" onclick="analyzePhoto()" ${photoBusy?'disabled':''}>↑</button>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:9px;font-family:var(--mono);font-size:11px;color:var(--mute)">
+        Margen de esta comida
+        <input type="number" inputmode="numeric" value="${photoPctVal==null?aiMarginPct():photoPctVal}" onchange="photoPctVal=Math.min(100,Math.max(-50,+this.value||0))"
+          style="width:64px;min-width:0;background:var(--graphite);border:1px solid var(--hairline);border-radius:9px;padding:6px;color:var(--amber);font-family:var(--mono);font-size:13px;text-align:center;outline:none;box-sizing:border-box">
+        %
+      </div>
       ${!S.geminiKey?`<div class="hint" style="margin-top:9px">Añade tu clave de Gemini gratuita en Ajustes para activar esto.</div>`:''}
     </div>
 
@@ -1220,6 +1274,7 @@ function vHistory(){
       </div>
       ${sparkline(lastW)}
     </div>`:''}
+    ${calibCard()}
 
     <div class="slabel">Por semanas</div>
     ${Object.keys(weeks).sort().reverse().map(wk=>{
@@ -1280,7 +1335,7 @@ function vSetup(){
     <div class="slabel">Tu perfil</div>
     <div class="grid2">
       <div class="field"><label>Peso actual (kg)</label>
-        <input type="number" step="0.1" value="${b.weight}" onchange="S.bio.weight=+this.value||91;save();render()"></div>
+        <input type="number" step="0.1" value="${b.weight}" onchange="if(+this.value>=30)logWeight(+this.value,key());render()"></div>
       <div class="field"><label>Altura (cm)</label>
         <input type="number" value="${b.height}" onchange="S.bio.height=+this.value||184;save();render()"></div>
     </div>
@@ -1301,6 +1356,12 @@ function vSetup(){
       <label>Cuánto cuentas del reloj (%)</label>
       <input type="number" value="${Math.round((S.watchFactor==null?0.85:S.watchFactor)*100)}" onchange="S.watchFactor=Math.min(120,Math.max(0,+this.value||85))/100;save();render()">
       <div class="hint">Los relojes suelen sobreestimar. 85 % es prudente; sube a 100 si tu peso baja más rápido de lo esperado, bájalo si no baja. El boxeo con banda de pecho se cuenta al 100 %.</div>
+    </div>
+
+    <div class="field">
+      <label>Margen por defecto en comidas de IA (%)</label>
+      <input type="number" value="${aiMarginPct()}" onchange="S.aiMargin=Math.min(50,Math.max(0,+this.value||0));save();render()">
+      <div class="hint">Valor inicial del margen que se suma a lo que estima la IA (aceite, salsas, raciones). En cada foto puedes cambiarlo. Pon 0 para quitarlo.</div>
     </div>
 
     <div class="slabel">Objetivo</div>
@@ -1331,8 +1392,11 @@ function vSetup(){
     <div style="display:flex;gap:8px;margin-bottom:14px">
       <input id="wKg" type="number" step="0.1" placeholder="${last}" 
         style="flex:1;background:var(--graphite);border:1px solid var(--hairline);border-radius:11px;padding:11px 13px;color:var(--bone);font-family:var(--mono);font-size:15px;outline:none;min-width:0">
+      <input id="wDate" type="date" value="${key()}" max="${key()}"
+        style="background:var(--graphite);border:1px solid var(--hairline);border-radius:11px;padding:11px 10px;color:var(--bone);font-family:var(--mono);font-size:13px;outline:none;min-width:0;width:140px">
       <button class="wbtn hot" style="width:auto;padding:11px 20px;margin:0" onclick="addWeight()">Registrar</button>
     </div>
+    <div class="hint" style="margin:-8px 0 14px">Elige el d\u00eda (por ejemplo el lunes pasado) para a\u00f1adir pesos antiguos.</div>
 
     <div class="slabel">Foto + IA (Gemini, gratis)</div>
     <div class="field">
@@ -1362,16 +1426,21 @@ function vSetup(){
   </div>`;
 }
 
+function logWeight(kg,k){
+  const i=S.weights.findIndex(w=>w.d===k);
+  if(i>=0) S.weights[i].kg=kg; else S.weights.push({d:k,kg});
+  S.weights.sort((a,b)=>a.d<b.d?-1:1);
+  S.bio.weight=S.weights[S.weights.length-1].kg;
+  save();
+}
 function addWeight(){
   const el=document.getElementById('wKg');
   const kg=+el.value;
   if(!kg||kg<30||kg>300){toast('Peso no v\u00e1lido');return}
-  const k=key();
-  const i=S.weights.findIndex(w=>w.d===k);
-  if(i>=0) S.weights[i].kg=kg; else S.weights.push({d:k,kg});
-  S.weights.sort((a,b)=>a.d<b.d?-1:1);
-  S.bio.weight=kg;
-  save(); toast('Peso registrado'); render();
+  const dEl=document.getElementById('wDate');
+  const k=(dEl&&dEl.value)||key();
+  logWeight(kg,k);
+  toast('Peso registrado'); render();
 }
 
 function wipe(){
@@ -1395,10 +1464,10 @@ function render(){
 
 document.querySelectorAll('.tab').forEach(b=>{
   b.onclick=()=>{
+    if(b.dataset.v==='today' && view==='today') viewDate=null;
     view=b.dataset.v;
     editIdx=null; qtyIdx=null; quickTotal=false;
     photoProposal=null; photoErr=null; photoRetry=null; clearPhoto();
-    if(view!=='pantry') viewDate=null; // Alimentos no rompe el día que estás editando
     render();
     window.scrollTo(0,0);
   };
