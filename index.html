@@ -456,12 +456,32 @@ Devuelve SOLO este JSON, sin markdown ni texto alrededor ni backticks:
 
 function pickPhoto(file){
   if(!file) return;
-  photoMime=file.type||'image/jpeg';
   if(photoPreview) URL.revokeObjectURL(photoPreview);
   photoPreview=URL.createObjectURL(file);
-  const fr=new FileReader();
-  fr.onload=()=>{photoImg=fr.result.split(',')[1]; render()};
-  fr.readAsDataURL(file);
+  const readRaw=()=>{
+    photoMime=file.type||'image/jpeg';
+    const fr=new FileReader();
+    fr.onload=()=>{photoImg=fr.result.split(',')[1]; render()};
+    fr.readAsDataURL(file);
+  };
+  // Reduce la foto a 1024 px (JPEG): sube en una fracci\u00f3n del tiempo y Gemini la lee igual
+  try{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const MAX=1024, sc=Math.min(1,MAX/Math.max(img.naturalWidth,img.naturalHeight));
+        const w=Math.round(img.naturalWidth*sc), h=Math.round(img.naturalHeight*sc);
+        const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        const url=cv.toDataURL('image/jpeg',0.82);
+        photoMime='image/jpeg';
+        photoImg=url.split(',')[1];
+        render();
+      }catch(e){readRaw()}
+    };
+    img.onerror=readRaw;
+    img.src=photoPreview;
+  }catch(e){readRaw()}
 }
 function clearPhoto(){
   photoImg=null;
@@ -512,6 +532,9 @@ async function callGemini(text){
     systemInstruction:{parts:[{text:PHOTO_BRIEF}]},
     generationConfig:{temperature:0.2,responseMimeType:'application/json'}
   };
+  // Menos "pensar" = respuesta m\u00e1s r\u00e1pida. Si el modelo no lo admite, se desactiva y se recuerda.
+  let noThink=false; try{noThink=localStorage.getItem('balance:noThink')==='1'}catch(e){}
+  if(!noThink) body.generationConfig.thinkingConfig={thinkingLevel:'low'};
 
   const MAX_RETRIES=2; // solo para fallos temporales (saturacion, red)
   const sleep=(ms)=>new Promise(res=>setTimeout(res,ms));
@@ -547,6 +570,12 @@ async function callGemini(text){
         const secs=parseRetrySecs(msg);
         lastErr=new Error(msg);
 
+        // El modelo no admite limitar el razonamiento: quitarlo y repetir sin gastar un intento
+        if(r.status===400 && body.generationConfig.thinkingConfig && /think/i.test(msg)){
+          delete body.generationConfig.thinkingConfig;
+          try{localStorage.setItem('balance:noThink','1')}catch(e){}
+          attempt--; continue;
+        }
         // Cuota agotada (espera larga): no reintentar, recordarlo y probar otro modelo
         if(r.status===429 && ((secs!==null && secs>90) || /per day|daily/i.test(msg))){
           const wait=secs!==null?secs:10800;
@@ -761,6 +790,35 @@ function hhmm(m){
 /* =========================================================
    ACCIONES
    ========================================================= */
+let habList=[];
+function habituales(){
+  const now=new Date();
+  const cutoff=key(new Date(now.getFullYear(),now.getMonth(),now.getDate()-45));
+  const cnt={};
+  Object.keys(S.days).sort().forEach(k=>{
+    if(k<cutoff) return;
+    (S.days[k].meals||[]).forEach(m=>{
+      if(!m||!m.name||/^total/i.test(m.name)||!(+m.kcal>0)) return;
+      const id=m.name+'|'+m.kcal;
+      const o=cnt[id]||(cnt[id]={m:m,n:0,last:k});
+      o.n++; o.last=k; o.m=m;
+    });
+  });
+  const all=Object.values(cnt);
+  const fav=all.filter(x=>x.n>=2).sort((a,b)=>b.n-a.n||(a.last<b.last?1:-1)).slice(0,8);
+  if(fav.length<6){
+    all.sort((a,b)=>a.last<b.last?1:a.last>b.last?-1:b.n-a.n).forEach(x=>{
+      if(fav.length<6 && !fav.includes(x)) fav.push(x);
+    });
+  }
+  return fav.map(x=>x.m);
+}
+function addHabit(i){
+  const m=habList[i]; if(!m) return;
+  addEntry(m);
+  toast('+ '+(m.name.length>26?m.name.slice(0,26)+'\u2026':m.name)+' \u00b7 '+Math.round(m.kcal)+' kcal');
+  render();
+}
 function addEntry(e){
   const d=today();
   d.meals.push({name:e.name,kcal:Math.round(+e.kcal||0),p:Math.round(+e.p||0),c:Math.round(+e.c||0),f:Math.round(+e.f||0)});
@@ -975,6 +1033,14 @@ function vToday(){
     </div>
 `:''}
 
+    ${(()=>{habList=habituales(); return habList.length?`
+    <div class="slabel">De siempre</div>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;-webkit-overflow-scrolling:touch">
+      ${habList.map((m,i)=>`<button onclick="addHabit(${i})" style="flex:0 0 auto;max-width:190px;background:var(--slate);border:1px solid var(--hairline);border-radius:12px;padding:9px 12px;text-align:left;cursor:pointer;color:var(--bone)">
+        <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.name)}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--amber);margin-top:2px">+${Math.round(m.kcal)} kcal</div>
+      </button>`).join('')}
+    </div>`:''})()}
     <div class="slabel">Foto + IA</div>
     ${photoErr?`<div class="err">${photoErr}</div>`:''}
     ${photoBusy?`<div class="busy"><i class="spin"></i>${photoRetry?`Gemini está saturado, reintentando (${photoRetry.attempt}/${photoRetry.max})…`:'Analizando…'}</div>`:''}
